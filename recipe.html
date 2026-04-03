@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Natalie's Recipe AI</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1d4ed8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Recipe AI">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+  <style>
+    :root {
+      --bg:         #05050f;
+      --glass:      rgba(120,80,255,0.04);
+      --border:     rgba(139,92,246,0.13);
+      --border-hi:  rgba(139,92,246,0.26);
+      --text:       #f0f0f8;
+      --muted:      #55557a;
+      --muted2:     #8888aa;
+      --accent:     #8b5cf6;
+      --accent2:    #7c3aed;
+      --accent-lo:  rgba(139,92,246,0.12);
+      --accent-glow:rgba(139,92,246,0.28);
+      --green:      #10b981;
+      --green2:     #059669;
+      --green-lo:   rgba(16,185,129,0.12);
+      --green-glow: rgba(16,185,129,0.25);
+      --red:        #f87171;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    [hidden] { display: none !important; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ─── Ambient blobs ─── */
+    .ambient { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    .blob { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.6; }
+    .blob-1 { width: 600px; height: 500px; top: -180px; left: -120px;
+      background: radial-gradient(ellipse, rgba(139,92,246,0.18), transparent 70%); }
+    .blob-2 { width: 500px; height: 450px; bottom: -120px; right: -100px;
+      background: radial-gradient(ellipse, rgba(16,185,129,0.12), transparent 70%); }
+    .blob-3 { width: 350px; height: 350px; top: 45%; left: 48%; transform: translate(-50%,-50%);
+      background: radial-gradient(ellipse, rgba(139,92,246,0.05), transparent 70%); }
+
+    .page { position: relative; z-index: 1; }
+
+    /* ─── Header ─── */
+    header {
+      padding: 18px 28px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(5,5,15,0.75);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .header-inner { max-width: 1180px; margin: 0 auto; display: flex; align-items: center; gap: 13px; }
+    .logo-icon { font-size: 1.7rem; filter: drop-shadow(0 0 10px rgba(139,92,246,0.7)); }
+    .logo-text h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+    .logo-text h1 .name { color: var(--green); }
+    .logo-text h1 .ai {
+      background: linear-gradient(135deg, var(--accent), #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .logo-text p { font-size: 0.74rem; color: var(--muted2); margin-top: 1px; }
+    .history-btn {
+      margin-left: auto; display: flex; align-items: center; gap: 6px;
+      background: var(--accent-lo); border: 1px solid rgba(139,92,246,0.22);
+      border-radius: 10px; color: var(--accent); font-size: 0.8rem; font-weight: 600;
+      padding: 8px 15px; cursor: pointer; font-family: inherit; transition: all 0.18s;
+    }
+    .history-btn:hover { background: rgba(139,92,246,0.2); }
+
+    main { max-width: 1180px; margin: 0 auto; padding: 36px 20px 80px; }
+
+    /* ─── Glass card ─── */
+    .glass {
+      background: var(--glass); border: 1px solid var(--border);
+      border-radius: 20px; backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    }
+
+    /* ─── Error banner ─── */
+    .error-banner {
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.22);
+      border-radius: 12px; padding: 12px 16px; margin-bottom: 20px;
+      color: var(--red); font-size: 0.88rem;
+    }
+
+    /* ─── Form ─── */
+    .form-section { max-width: 620px; margin: 0 auto; }
+    .form-card { padding: 36px; }
+    .form-title { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 5px; }
+    .form-subtitle { font-size: 0.84rem; color: var(--muted2); margin-bottom: 30px; }
+
+    .field { margin-bottom: 20px; }
+    .field-label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    label { font-size: 0.77rem; font-weight: 600; color: var(--muted2); text-transform: uppercase; letter-spacing: 0.08em; }
+
+    .photo-btn {
+      display: flex; align-items: center; gap: 5px;
+      background: var(--accent-lo); border: 1px solid rgba(139,92,246,0.22);
+      border-radius: 8px; color: var(--accent); font-size: 0.74rem; font-weight: 600;
+      padding: 5px 10px; cursor: pointer; transition: all 0.18s; font-family: inherit;
+    }
+    .photo-btn:hover { background: rgba(139,92,246,0.2); }
+
+    .photo-strip {
+      display: flex; align-items: center; gap: 12px;
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
+    }
+    .photo-thumb { width: 44px; height: 44px; border-radius: 7px; object-fit: cover; flex-shrink: 0; border: 1px solid var(--border); }
+    .photo-strip-info { flex: 1; min-width: 0; }
+    .photo-strip-status { font-size: 0.82rem; color: var(--muted2); }
+    .photo-strip-status.success { color: var(--green); }
+    .photo-strip-status.analyzing { display: flex; align-items: center; gap: 7px; }
+    .mini-spin { width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+    .photo-clear-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.85rem; padding: 4px; border-radius: 4px; transition: color 0.15s; line-height: 1; }
+    .photo-clear-btn:hover { color: var(--red); }
+
+    textarea, select, input[type="number"] {
+      width: 100%; background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border-hi); border-radius: 12px;
+      padding: 12px 14px; font-size: 0.93rem; font-family: inherit;
+      color: var(--text); outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    textarea::placeholder, input::placeholder { color: var(--muted); }
+    textarea:focus, select:focus, input:focus {
+      border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-lo);
+    }
+    textarea { resize: vertical; }
+    select option { background: #10102a; }
+    .hint { display: block; font-size: 0.75rem; color: var(--muted); margin-top: 6px; }
+
+    .field-row { display: flex; gap: 14px; margin-bottom: 20px; }
+    .field-row .field { flex: 1; margin-bottom: 0; }
+    input[type="number"] { max-width: 100px; }
+
+    /* ─── Dad checkbox ─── */
+    .dad-row {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--green-lo); border: 1px solid rgba(16,185,129,0.2);
+      border-radius: 12px; padding: 13px 16px; margin-bottom: 20px;
+      cursor: pointer; transition: background 0.18s; user-select: none;
+    }
+    .dad-row:hover { background: rgba(16,185,129,0.18); }
+    .dad-check-box {
+      width: 20px; height: 20px; border: 2px solid var(--green); border-radius: 6px;
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: background 0.15s;
+    }
+    .dad-row.checked .dad-check-box { background: var(--green); }
+    .dad-check-icon { display: none; color: #fff; font-size: 0.75rem; font-weight: 800; }
+    .dad-row.checked .dad-check-icon { display: block; }
+    .dad-label-text { font-size: 0.9rem; font-weight: 600; color: var(--green); }
+    .dad-label-sub { font-size: 0.75rem; color: var(--muted2); margin-top: 2px; }
+
+    /* ─── Submit ─── */
+    .submit-btn {
+      width: 100%; background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; border: none; border-radius: 12px; padding: 15px;
+      font-size: 0.97rem; font-weight: 600; font-family: inherit; cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+      box-shadow: 0 4px 24px var(--accent-glow); letter-spacing: 0.01em; margin-top: 4px;
+    }
+    .submit-btn:hover  { transform: translateY(-1px); box-shadow: 0 6px 32px var(--accent-glow); }
+    .submit-btn:active { transform: scale(0.99); }
+    .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* ─── Loading ─── */
+    .loading-section {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 28px; min-height: 380px;
+    }
+    #pan-canvas { display: block; }
+    .loading-text { font-size: 0.9rem; color: var(--muted2); letter-spacing: 0.04em; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Recipe + Chat ─── */
+    .section-top { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; flex-wrap: wrap; }
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border-hi);
+      border-radius: 9px; color: var(--muted2); font-size: 0.82rem; font-weight: 500;
+      padding: 7px 13px; cursor: pointer; transition: color 0.15s, background 0.15s;
+      font-family: inherit; white-space: nowrap;
+    }
+    .back-btn:hover { color: var(--text); background: rgba(255,255,255,0.07); }
+
+    .recipe-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; }
+    .recipe-card { padding: 32px; }
+
+    #recipe-output h2 { font-size: 1.65rem; font-weight: 700; letter-spacing: -0.03em; color: var(--text); line-height: 1.2; margin-bottom: 10px; }
+    #recipe-output .meta { font-size: 0.8rem; color: var(--muted2); margin-bottom: 26px; padding-bottom: 20px; border-bottom: 1px solid var(--border); font-style: normal; }
+    #recipe-output h3 { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--green); margin: 26px 0 13px; display: flex; align-items: center; gap: 8px; }
+    #recipe-output h3::before { content: ''; display: inline-block; width: 16px; height: 2px; background: var(--green); border-radius: 2px; flex-shrink: 0; }
+    #recipe-output p { font-size: 0.9rem; line-height: 1.75; color: var(--muted2); font-style: italic; }
+    #recipe-output ul { list-style: none; padding: 0; }
+    #recipe-output ul li { display: flex; align-items: baseline; gap: 10px; padding: 8px 0; font-size: 0.9rem; line-height: 1.5; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text); }
+    #recipe-output ul li::before { content: ''; width: 5px; height: 5px; min-width: 5px; background: var(--green); border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+    #recipe-output ol { list-style: none; padding: 0; counter-reset: steps; }
+    #recipe-output ol li { counter-increment: steps; display: flex; gap: 14px; padding: 12px 0; font-size: 0.9rem; line-height: 1.65; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text); }
+    #recipe-output ol li::before { content: counter(steps); display: flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; border-radius: 8px; font-size: 0.72rem; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+
+    /* ─── Chat panel ─── */
+    .chat-panel { position: sticky; top: 80px; height: calc(100vh - 100px); display: flex; flex-direction: column; overflow: hidden; border-radius: 20px; }
+    .chat-header { padding: 18px 18px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .chat-header h3 { font-size: 0.92rem; font-weight: 700; margin-bottom: 2px; }
+    .chat-header p { font-size: 0.73rem; color: var(--muted); }
+
+    .cuisine-chips-row { display: flex; flex-wrap: wrap; gap: 5px; padding: 10px 12px 6px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .cq-chip { font-size: 0.72rem; font-weight: 500; padding: 4px 9px; background: rgba(139,92,246,0.07); border: 1px solid rgba(139,92,246,0.16); border-radius: 20px; color: var(--muted2); cursor: pointer; font-family: inherit; transition: all 0.15s; white-space: nowrap; }
+    .cq-chip:hover { background: var(--accent-lo); color: var(--accent); border-color: rgba(139,92,246,0.35); }
+
+    .chat-messages { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; scrollbar-width: thin; scrollbar-color: rgba(139,92,246,0.15) transparent; }
+    .chat-messages::-webkit-scrollbar { width: 4px; }
+    .chat-messages::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.2); border-radius: 4px; }
+    .chat-hint { font-size: 0.77rem; color: var(--muted); line-height: 1.6; background: rgba(255,255,255,0.02); border: 1px dashed rgba(139,92,246,0.15); border-radius: 12px; padding: 13px; text-align: center; }
+
+    .msg { display: flex; flex-direction: column; max-width: 92%; }
+    .msg.user { align-self: flex-end; align-items: flex-end; }
+    .msg.assistant { align-self: flex-start; align-items: flex-start; }
+    .msg-bubble { padding: 9px 13px; border-radius: 14px; font-size: 0.82rem; line-height: 1.55; }
+    .msg.user .msg-bubble { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; border-bottom-right-radius: 4px; }
+    .msg.assistant .msg-bubble { background: rgba(255,255,255,0.055); border: 1px solid var(--border); color: var(--text); border-bottom-left-radius: 4px; }
+    .msg.assistant .msg-bubble.thinking { color: var(--muted2); font-style: italic; }
+    .recipe-updated-notice { display: inline-flex; align-items: center; gap: 5px; font-size: 0.72rem; color: var(--green); background: var(--green-lo); border: 1px solid rgba(16,185,129,0.22); border-radius: 6px; padding: 3px 8px; margin-bottom: 4px; }
+
+    .chat-input-bar { padding: 12px 12px 14px; border-top: 1px solid var(--border); display: flex; gap: 8px; flex-shrink: 0; }
+    .chat-input-bar input { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--border-hi); border-radius: 10px; padding: 9px 13px; font-size: 0.84rem; color: var(--text); font-family: inherit; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
+    .chat-input-bar input::placeholder { color: var(--muted); }
+    .chat-input-bar input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-lo); }
+    .chat-send-btn { width: 38px; height: 38px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; border-radius: 10px; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: opacity 0.15s, transform 0.15s; box-shadow: 0 2px 12px var(--accent-glow); }
+    .chat-send-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+    .chat-send-btn:active { transform: scale(0.95); }
+    .chat-send-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+    /* ─── History ─── */
+    .history-title { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.025em; }
+    .history-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 16px; margin-top: 4px; }
+    .history-empty { text-align: center; color: var(--muted2); font-size: 0.9rem; padding: 60px 20px; border: 1px dashed var(--border); border-radius: 16px; margin-top: 4px; }
+    .hcard { padding: 20px; border-radius: 16px; transition: border-color 0.18s, transform 0.18s; }
+    .hcard:hover { border-color: var(--border-hi); transform: translateY(-2px); }
+    .hcard-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+    .htag { font-size: 0.7rem; font-weight: 600; padding: 3px 8px; background: var(--accent-lo); color: var(--accent); border-radius: 6px; text-transform: capitalize; }
+    .htag.green { background: var(--green-lo); color: var(--green); }
+    .hcard-name { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 4px; line-height: 1.3; }
+    .hcard-date { font-size: 0.76rem; color: var(--muted2); margin-bottom: 10px; }
+    .hcard-ratings { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+    .hcard-rating-pill {
+      display: flex; align-items: center; gap: 4px;
+      background: rgba(255,255,255,.05); border: 1px solid var(--border);
+      border-radius: 8px; padding: 4px 8px; font-size: 0.73rem;
+    }
+    .hcard-rating-pill .rp-name { color: var(--muted2); font-weight: 600; }
+    .hcard-rating-pill .rp-score {
+      font-weight: 700; color: var(--text);
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .hcard-rating-pill .rp-score.high { background: linear-gradient(135deg, var(--green), #34d399); -webkit-background-clip: text; background-clip: text; }
+    .hcard-rating-pill .rp-score.low  { background: linear-gradient(135deg, #f87171, #fb923c); -webkit-background-clip: text; background-clip: text; }
+    .hcard-actions { display: flex; gap: 8px; }
+    .hcard-btn { flex: 1; padding: 8px 10px; border-radius: 9px; font-size: 0.8rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; border: 1px solid transparent; }
+    .view-btn { background: var(--green-lo); color: var(--green); border-color: rgba(16,185,129,0.22); }
+    .view-btn:hover { background: rgba(16,185,129,0.2); }
+    .remake-btn { background: var(--accent-lo); color: var(--accent); border-color: rgba(139,92,246,0.22); }
+    .remake-btn:hover { background: rgba(139,92,246,0.2); }
+
+    /* ─── Done / Rate button ─── */
+    .rate-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; background: linear-gradient(135deg,#f59e0b,#d97706);
+      color:#fff; border:none; border-radius:12px; padding:14px;
+      font-size:.95rem; font-weight:600; font-family:inherit; cursor:pointer;
+      transition:transform .15s,box-shadow .15s; margin-top:28px;
+      box-shadow: 0 4px 20px rgba(245,158,11,.32);
+    }
+    .rate-btn:hover { transform:translateY(-1px); box-shadow:0 6px 28px rgba(245,158,11,.44); }
+    .rate-btn:active { transform:scale(.98); }
+
+    /* ─── Rating overlay ─── */
+    .rating-overlay {
+      position:fixed; inset:0; background:rgba(0,0,0,.72);
+      backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+      z-index:200; display:flex; align-items:center; justify-content:center; padding:20px;
+    }
+    .rating-modal {
+      background:#0d0d1f; border:1px solid rgba(139,92,246,.28);
+      border-radius:24px; width:100%; max-width:500px;
+      max-height:90vh; overflow-y:auto; padding:32px 28px;
+      box-shadow:0 28px 64px rgba(0,0,0,.65);
+    }
+    .rating-modal-title { font-size:1.3rem; font-weight:700; letter-spacing:-.025em; margin-bottom:4px; }
+    .rating-modal-sub { font-size:.82rem; color:var(--muted2); margin-bottom:24px; }
+    .rater-card {
+      background:rgba(255,255,255,.04); border:1px solid var(--border);
+      border-radius:16px; padding:18px 18px 14px; margin-bottom:14px;
+    }
+    .rater-name { font-size:.72rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted2); margin-bottom:11px; }
+    .rating-nums { display:flex; gap:5px; flex-wrap:wrap; margin-bottom:12px; }
+    .rnum-btn {
+      width:34px; height:34px; border-radius:8px; border:1px solid var(--border-hi);
+      background:rgba(255,255,255,.04); color:var(--muted2);
+      font-size:.8rem; font-weight:700; cursor:pointer; font-family:inherit;
+      transition:all .12s; display:flex; align-items:center; justify-content:center;
+    }
+    .rnum-btn:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-lo); }
+    .rnum-btn.sel { background:linear-gradient(135deg,var(--accent),var(--accent2)); border-color:transparent; color:#fff; }
+    .rater-notes {
+      width:100%; background:rgba(255,255,255,.04); border:1px solid var(--border-hi);
+      border-radius:10px; padding:9px 12px; font-size:.84rem; color:var(--text);
+      font-family:inherit; resize:vertical; outline:none; transition:border-color .2s,box-shadow .2s;
+    }
+    .rater-notes::placeholder { color:var(--muted); }
+    .rater-notes:focus { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-lo); }
+    .rating-actions { display:flex; gap:10px; margin-top:20px; }
+    .save-ratings-btn {
+      flex:1; background:linear-gradient(135deg,var(--green),var(--green2));
+      color:#fff; border:none; border-radius:12px; padding:13px;
+      font-size:.95rem; font-weight:600; cursor:pointer; font-family:inherit;
+      transition:transform .15s,opacity .15s;
+    }
+    .save-ratings-btn:hover { transform:translateY(-1px); }
+    .cancel-ratings-btn {
+      background:rgba(255,255,255,.05); border:1px solid var(--border-hi);
+      color:var(--muted2); border-radius:12px; padding:13px 20px;
+      font-size:.95rem; font-weight:600; cursor:pointer; font-family:inherit; transition:background .15s;
+    }
+    .cancel-ratings-btn:hover { background:rgba(255,255,255,.09); }
+
+    @media (max-width: 780px) {
+      .recipe-layout { grid-template-columns: 1fr; }
+      .chat-panel { position: static; height: 480px; }
+    }
+    @media (max-width: 500px) {
+      .form-card, .recipe-card { padding: 22px 16px; }
+      header { padding: 14px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="ambient" aria-hidden="true">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
+
+<div class="page">
+  <header>
+    <div class="header-inner">
+      <div class="logo-icon">🍽️</div>
+      <div class="logo-text">
+        <h1><span class="name">Natalie's</span> Recipe <span class="ai">AI</span></h1>
+        <p>Turn your ingredients into delicious meals</p>
+      </div>
+      <button class="history-btn" id="history-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        History
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <div class="error-banner" id="error-banner" hidden>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="error-msg"></span>
+    </div>
+
+    <!-- ══ FORM ══ -->
+    <section id="form-section" class="form-section">
+      <div class="form-card glass">
+        <p class="form-title">What's in your kitchen?</p>
+        <p class="form-subtitle">List your ingredients or snap a photo — we'll build the perfect recipe.</p>
+        <form id="recipe-form">
+          <div class="field">
+            <div class="field-label-row">
+              <label>Ingredients</label>
+              <button type="button" class="photo-btn" id="photo-btn">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                Upload photo
+              </button>
+              <input type="file" id="photo-input" accept="image/*" hidden>
+            </div>
+            <div class="photo-strip" id="photo-strip" hidden>
+              <img class="photo-thumb" id="photo-thumb" src="" alt="">
+              <div class="photo-strip-info">
+                <div class="photo-strip-status analyzing" id="photo-status"><div class="mini-spin"></div> Identifying ingredients…</div>
+              </div>
+              <button type="button" class="photo-clear-btn" id="photo-clear">✕</button>
+            </div>
+            <textarea id="ingredients" placeholder="e.g. chicken thighs, garlic, lemon, rosemary, potatoes" rows="3" required></textarea>
+            <span class="hint">Separate with commas. Skip basics like salt, pepper, and olive oil.</span>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label>Meal type</label>
+              <select id="mealType" required>
+                <option value="">Choose…</option>
+                <option value="breakfast">Breakfast</option>
+                <option value="brunch">Brunch</option>
+                <option value="lunch">Lunch</option>
+                <option value="dinner">Dinner</option>
+                <option value="snack">Snack</option>
+                <option value="dessert">Dessert</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Serves</label>
+              <input type="number" id="servings" min="1" max="20" value="2" required>
+            </div>
+          </div>
+
+          <div class="dad-row" id="dad-row">
+            <input type="checkbox" id="dad-eating" hidden>
+            <div class="dad-check-box"><span class="dad-check-icon">✓</span></div>
+            <div>
+              <div class="dad-label-text">🥦 Dad is eating</div>
+              <div class="dad-label-sub">Dad is vegetarian — recipe will be completely meat-free</div>
+            </div>
+          </div>
+
+          <button type="submit" class="submit-btn" id="submit-btn">Generate Recipe</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ══ LOADING ══ -->
+    <section id="loading-section" class="loading-section" hidden>
+      <canvas id="pan-canvas" width="300" height="270"></canvas>
+      <p class="loading-text">Cooking up your recipe…</p>
+    </section>
+
+    <!-- ══ RECIPE + CHAT ══ -->
+    <section id="recipe-section" hidden>
+      <div class="section-top">
+        <button class="back-btn" id="back-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+          New recipe
+        </button>
+        <button class="back-btn" id="view-history-btn" style="color:var(--green);border-color:rgba(16,185,129,0.3);">
+          📚 History
+        </button>
+      </div>
+      <div class="recipe-layout">
+        <div class="recipe-card glass">
+          <div id="recipe-output"></div>
+          <button class="rate-btn" id="rate-btn">✓ Done — Rate this recipe!</button>
+        </div>
+        <div class="chat-panel glass">
+          <div class="chat-header">
+            <h3>Adjust Recipe</h3>
+            <p>Missing an ingredient? Change cuisine? Dietary needs?</p>
+          </div>
+          <div class="cuisine-chips-row">
+            <button class="cq-chip" data-cuisine="American">🇺🇸 American</button>
+            <button class="cq-chip" data-cuisine="Italian">🇮🇹 Italian</button>
+            <button class="cq-chip" data-cuisine="Mexican">🇲🇽 Mexican</button>
+            <button class="cq-chip" data-cuisine="Indian">🇮🇳 Indian</button>
+            <button class="cq-chip" data-cuisine="Asian">🍜 Asian</button>
+            <button class="cq-chip" data-cuisine="Japanese">🍣 Japanese</button>
+            <button class="cq-chip" data-cuisine="Mediterranean">🫒 Mediterranean</button>
+            <button class="cq-chip" data-cuisine="French">🥐 French</button>
+          </div>
+          <div class="chat-messages" id="chat-messages">
+            <div class="chat-hint">Tap a cuisine above or type below — "I don't have rosemary", "make it vegan", "fewer calories"</div>
+          </div>
+          <div class="chat-input-bar">
+            <input type="text" id="chat-input" placeholder="Ask me to adjust the recipe…" autocomplete="off">
+            <button class="chat-send-btn" id="chat-send">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ HISTORY ══ -->
+    <section id="history-section" hidden>
+      <div class="section-top">
+        <button class="back-btn" id="history-back">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+          Back
+        </button>
+        <span class="history-title">Past Recipes</span>
+      </div>
+      <div class="history-grid" id="history-grid"></div>
+      <div class="history-empty" id="history-empty" hidden>No recipes yet — generate your first one! 🍳</div>
+    </section>
+  </main>
+</div>
+
+<!-- ══ RATING OVERLAY ══ -->
+<div class="rating-overlay" id="rating-overlay" hidden>
+  <div class="rating-modal">
+    <div class="rating-modal-title">How was it? 🍳</div>
+    <div class="rating-modal-sub" id="rating-recipe-name">Rate this recipe</div>
+
+    <div class="rater-card">
+      <div class="rater-name">Huck</div>
+      <div class="rating-nums" id="stars-huck"></div>
+      <textarea class="rater-notes" id="notes-huck" rows="2" placeholder="Any notes for Huck…"></textarea>
+    </div>
+    <div class="rater-card">
+      <div class="rater-name">Juno</div>
+      <div class="rating-nums" id="stars-juno"></div>
+      <textarea class="rater-notes" id="notes-juno" rows="2" placeholder="Any notes for Juno…"></textarea>
+    </div>
+    <div class="rater-card">
+      <div class="rater-name">Dad</div>
+      <div class="rating-nums" id="stars-dad"></div>
+      <textarea class="rater-notes" id="notes-dad" rows="2" placeholder="Any notes for Dad…"></textarea>
+    </div>
+
+    <div class="rating-actions">
+      <button class="cancel-ratings-btn" id="cancel-ratings">Cancel</button>
+      <button class="save-ratings-btn" id="save-ratings">Save Ratings</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_KEY = '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';
+
+  const SYSTEM = `You are a friendly, expert home cook and recipe assistant for Natalie.
+When asked to modify a recipe (swap an ingredient, change cuisine style, accommodate a dietary need, adjust servings, etc.), always provide the complete updated recipe using this exact Markdown format:
+
+## [Recipe Name]
+
+**Prep time:** X minutes | **Cook time:** X minutes | **Servings:** N
+
+### About this dish
+Brief description.
+
+### Ingredients
+- item with measurement
+
+### Instructions
+1. Step
+
+### Tips
+- tip
+
+For short clarifications that don't need a full recipe, respond naturally. Be warm, practical, and concise.`;
+
+  let conversationHistory = [];
+  let currentInputs = {};
+  let currentRecipeId = null;
+
+  /* ─── DOM refs ─── */
+  const formSection    = document.getElementById('form-section');
+  const loadingSection = document.getElementById('loading-section');
+  const recipeSection  = document.getElementById('recipe-section');
+  const historySection = document.getElementById('history-section');
+  const errorBanner    = document.getElementById('error-banner');
+  const errorMsg       = document.getElementById('error-msg');
+  const form           = document.getElementById('recipe-form');
+  const submitBtn      = document.getElementById('submit-btn');
+  const photoBtn       = document.getElementById('photo-btn');
+  const photoInput     = document.getElementById('photo-input');
+  const photoStrip     = document.getElementById('photo-strip');
+  const photoThumb     = document.getElementById('photo-thumb');
+  const photoStatus    = document.getElementById('photo-status');
+  const photoClear     = document.getElementById('photo-clear');
+  const ingredientsTA  = document.getElementById('ingredients');
+  const recipeOutput   = document.getElementById('recipe-output');
+  const backBtn        = document.getElementById('back-btn');
+  const viewHistoryBtn = document.getElementById('view-history-btn');
+  const chatMessages   = document.getElementById('chat-messages');
+  const chatInput      = document.getElementById('chat-input');
+  const chatSend       = document.getElementById('chat-send');
+  const historyBtn     = document.getElementById('history-btn');
+  const historyBack    = document.getElementById('history-back');
+  const historyGrid    = document.getElementById('history-grid');
+  const historyEmpty   = document.getElementById('history-empty');
+  const dadRow         = document.getElementById('dad-row');
+  const dadCheckbox    = document.getElementById('dad-eating');
+
+  /* ─── Dad checkbox ─── */
+  dadRow.addEventListener('click', () => {
+    dadCheckbox.checked = !dadCheckbox.checked;
+    dadRow.classList.toggle('checked', dadCheckbox.checked);
+  });
+
+  /* ══ PHOTO UPLOAD ══ */
+  photoBtn.addEventListener('click', () => photoInput.click());
+  photoInput.addEventListener('change', e => { const f = e.target.files[0]; if (f) handlePhoto(f); });
+  photoClear.addEventListener('click', () => { photoStrip.hidden = true; photoInput.value = ''; });
+
+  async function handlePhoto(file) {
+    photoStrip.hidden = false;
+    photoStatus.className = 'photo-strip-status analyzing';
+    photoStatus.innerHTML = '<div class="mini-spin"></div> Identifying ingredients…';
+    try {
+      const { b64, mime, dataUrl } = await toBase64(file);
+      photoThumb.src = dataUrl;
+      const found = await identifyIngredients(b64, mime);
+      ingredientsTA.value = found;
+      photoStatus.className = 'photo-strip-status success';
+      photoStatus.textContent = '✓ Ingredients identified — edit below if needed';
+    } catch {
+      photoStatus.className = 'photo-strip-status';
+      photoStatus.textContent = 'Could not read photo — please type ingredients manually.';
+    }
+  }
+
+  function toBase64(file) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => { const d = r.result; resolve({ b64: d.split(',')[1], mime: file.type, dataUrl: d }); };
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+  }
+
+  async function identifyIngredients(b64, mime) {
+    return callAPI([{ role: 'user', content: [
+      { type: 'image', source: { type: 'base64', media_type: mime, data: b64 } },
+      { type: 'text', text: 'List every food ingredient or item you can see in this image as a comma-separated list only. Be specific (e.g. "chicken thighs" not "chicken"). Output only the comma-separated list, nothing else.' }
+    ]}], 200);
+  }
+
+  /* ══ RECIPE GENERATION ══ */
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    hideError();
+    const ingredients = ingredientsTA.value.trim();
+    const mealType    = document.getElementById('mealType').value;
+    const servings    = parseInt(document.getElementById('servings').value, 10);
+    const dadEating   = dadCheckbox.checked;
+    currentInputs     = { ingredients, mealType, servings, dadEating };
+
+    const vegNote = dadEating
+      ? '\n\nIMPORTANT: Dad is eating and he is strictly vegetarian. The recipe MUST be completely meat-free.'
+      : '';
+
+    const userMsg = `Create a delicious ${mealType} recipe for ${servings} people using: ${ingredients}.${vegNote}
+
+Format your response exactly like this:
+
+## [Recipe Name]
+
+**Prep time:** X minutes | **Cook time:** X minutes | **Servings:** ${servings}
+
+### About this dish
+2-3 sentences.
+
+### Ingredients
+- ingredient with exact measurement
+
+### Instructions
+1. Step with timing and visual cues
+
+### Tips
+- 1-2 practical tips`;
+
+    conversationHistory = [{ role: 'user', content: userMsg }];
+    showLoading();
+
+    try {
+      const recipe = await callAPI(conversationHistory);
+      conversationHistory.push({ role: 'assistant', content: recipe });
+      currentRecipeId = saveRecipe(recipe, currentInputs);
+      showRecipe(recipe);
+    } catch (err) { showError(err.message); }
+  });
+
+  /* ══ CHAT ══ */
+  chatSend.addEventListener('click', sendChat);
+  chatInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } });
+
+  document.querySelectorAll('.cq-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      chatInput.value = `Can you give this recipe a ${btn.dataset.cuisine} style twist?`;
+      sendChat();
+    });
+  });
+
+  async function sendChat() {
+    const text = chatInput.value.trim();
+    if (!text || chatSend.disabled) return;
+    chatInput.value = '';
+    appendMsg('user', text);
+    conversationHistory.push({ role: 'user', content: text });
+    chatSend.disabled = true;
+    const bubble = appendMsg('assistant', 'Thinking…', true);
+    try {
+      const reply = await callAPI(conversationHistory);
+      conversationHistory.push({ role: 'assistant', content: reply });
+      bubble.classList.remove('thinking');
+      if (reply.includes('### Ingredients') && reply.includes('### Instructions')) {
+        // Full recipe — update the main display, keep chat brief
+        recipeOutput.innerHTML = markdownToHtml(reply);
+        currentRecipeId = saveRecipe(reply, currentInputs);
+        const name = extractName(reply);
+        bubble.innerHTML = `✅ Recipe updated to <strong>${name}</strong> — scroll up to see it!`;
+        recipeOutput.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        // Short answer — show it in the chat bubble as normal
+        bubble.innerHTML = inlineHtml(reply);
+      }
+    } catch (err) {
+      bubble.textContent = 'Something went wrong. Please try again.';
+      bubble.style.color = 'var(--red)';
+      conversationHistory.pop();
+    } finally {
+      chatSend.disabled = false;
+      chatInput.focus();
+    }
+  }
+
+  function appendMsg(role, text, isThinking = false) {
+    const hint = chatMessages.querySelector('.chat-hint');
+    if (hint) hint.remove();
+    const wrap = document.createElement('div');
+    wrap.className = `msg ${role}`;
+    const bubble = document.createElement('div');
+    bubble.className = `msg-bubble${isThinking ? ' thinking' : ''}`;
+    bubble.innerHTML = isThinking ? text : inlineHtml(text);
+    wrap.appendChild(bubble);
+    chatMessages.appendChild(wrap);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    return bubble;
+  }
+
+  /* ══ HISTORY ══ */
+  function saveRecipe(recipe, inputs) {
+    const id   = Date.now();
+    const name = extractName(recipe);
+    const all  = getHistory();
+    all.unshift({ id, name, recipe, inputs, ratings: null,
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) });
+    if (all.length > 30) all.pop();
+    localStorage.setItem('natalie_recipes', JSON.stringify(all));
+    return id;
+  }
+
+  function getHistory() {
+    try { return JSON.parse(localStorage.getItem('natalie_recipes') || '[]'); } catch { return []; }
+  }
+
+  function extractName(md) {
+    const m = md.match(/^## (.+)$/m);
+    return m ? m[1].replace(/\[|\]/g, '').trim() : 'Untitled Recipe';
+  }
+
+  historyBtn.addEventListener('click', showHistory);
+  viewHistoryBtn.addEventListener('click', showHistory);
+  historyBack.addEventListener('click', () => { historySection.hidden = true; formSection.hidden = false; });
+
+  function showHistory() {
+    [formSection, recipeSection, loadingSection].forEach(s => s.hidden = true);
+    historySection.hidden = false;
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const all = getHistory();
+    historyGrid.innerHTML = '';
+    if (all.length === 0) { historyEmpty.hidden = false; return; }
+    historyEmpty.hidden = true;
+    all.forEach(entry => {
+      const card = document.createElement('div');
+      card.className = 'hcard glass';
+      const tags = [
+        entry.inputs.mealType   && `<span class="htag">${entry.inputs.mealType}</span>`,
+        entry.inputs.dadEating  && `<span class="htag green">🥦 Vegetarian</span>`
+      ].filter(Boolean).join('');
+      // Build ratings row if any scores exist
+      let ratingsHtml = '';
+      if (entry.ratings) {
+        const pills = ['huck','juno','dad'].map(p => {
+          const r = entry.ratings[p];
+          if (!r?.score) return '';
+          const cls = r.score >= 8 ? 'high' : r.score <= 5 ? 'low' : '';
+          const label = p.charAt(0).toUpperCase() + p.slice(1);
+          return `<span class="hcard-rating-pill"><span class="rp-name">${label}</span><span class="rp-score ${cls}">${r.score}/10</span></span>`;
+        }).filter(Boolean).join('');
+        if (pills) ratingsHtml = `<div class="hcard-ratings">${pills}</div>`;
+      }
+      card.innerHTML = `
+        <div class="hcard-tags">${tags || '<span class="htag">Recipe</span>'}</div>
+        <div class="hcard-name">${entry.name}</div>
+        <div class="hcard-date">${entry.date} · Serves ${entry.inputs.servings}</div>
+        ${ratingsHtml}
+        <div class="hcard-actions">
+          <button class="hcard-btn view-btn">View</button>
+          <button class="hcard-btn remake-btn">↺ Remake</button>
+        </div>`;
+      card.querySelector('.view-btn').addEventListener('click', () => {
+        historySection.hidden = true;
+        conversationHistory = [{ role: 'user', content: `Recipe: ${entry.name}` }, { role: 'assistant', content: entry.recipe }];
+        currentInputs = entry.inputs;
+        currentRecipeId = entry.id;
+        showRecipe(entry.recipe);
+      });
+      card.querySelector('.remake-btn').addEventListener('click', () => {
+        historySection.hidden = true;
+        ingredientsTA.value = entry.inputs.ingredients || '';
+        document.getElementById('mealType').value = entry.inputs.mealType || '';
+        document.getElementById('servings').value = entry.inputs.servings || 2;
+        dadCheckbox.checked = !!entry.inputs.dadEating;
+        dadRow.classList.toggle('checked', dadCheckbox.checked);
+        formSection.hidden = false;
+        form.requestSubmit();
+      });
+      historyGrid.appendChild(card);
+    });
+  }
+
+  /* ══ RATING FORM ══ */
+  const rateBtn        = document.getElementById('rate-btn');
+  const ratingOverlay  = document.getElementById('rating-overlay');
+  const cancelRatings  = document.getElementById('cancel-ratings');
+  const saveRatingsBtn = document.getElementById('save-ratings');
+  const ratingRecName  = document.getElementById('rating-recipe-name');
+
+  // Build 1-10 buttons for each person
+  ['huck','juno','dad'].forEach(person => {
+    const container = document.getElementById(`stars-${person}`);
+    for (let i = 1; i <= 10; i++) {
+      const btn = document.createElement('button');
+      btn.className = 'rnum-btn'; btn.textContent = i; btn.type = 'button'; btn.dataset.val = i;
+      btn.addEventListener('click', () => {
+        container.querySelectorAll('.rnum-btn').forEach(b => b.classList.toggle('sel', b.dataset.val == i));
+      });
+      container.appendChild(btn);
+    }
+  });
+
+  rateBtn.addEventListener('click', () => {
+    // Reset
+    ['huck','juno','dad'].forEach(p => {
+      document.getElementById(`stars-${p}`).querySelectorAll('.rnum-btn').forEach(b => b.classList.remove('sel'));
+      document.getElementById(`notes-${p}`).value = '';
+    });
+    // Pre-fill existing ratings
+    if (currentRecipeId) {
+      const entry = getHistory().find(e => e.id === currentRecipeId);
+      if (entry) {
+        ratingRecName.textContent = `Rating: ${entry.name}`;
+        if (entry.ratings) {
+          ['huck','juno','dad'].forEach(p => {
+            const r = entry.ratings[p];
+            if (r?.score) document.getElementById(`stars-${p}`).querySelectorAll('.rnum-btn').forEach(b => b.classList.toggle('sel', b.dataset.val == r.score));
+            if (r?.notes) document.getElementById(`notes-${p}`).value = r.notes;
+          });
+        }
+      }
+    }
+    ratingOverlay.hidden = false;
+  });
+
+  cancelRatings.addEventListener('click', () => { ratingOverlay.hidden = true; });
+  ratingOverlay.addEventListener('click', e => { if (e.target === ratingOverlay) ratingOverlay.hidden = true; });
+
+  saveRatingsBtn.addEventListener('click', () => {
+    const ratings = {};
+    ['huck','juno','dad'].forEach(p => {
+      const sel = document.getElementById(`stars-${p}`).querySelector('.rnum-btn.sel');
+      ratings[p] = { score: sel ? parseInt(sel.dataset.val) : null, notes: document.getElementById(`notes-${p}`).value.trim() };
+    });
+    if (currentRecipeId) {
+      const all = getHistory();
+      const entry = all.find(e => e.id === currentRecipeId);
+      if (entry) { entry.ratings = ratings; localStorage.setItem('natalie_recipes', JSON.stringify(all)); }
+    }
+    ratingOverlay.hidden = true;
+    rateBtn.textContent = '⭐ Ratings saved!';
+    setTimeout(() => { rateBtn.textContent = '✓ Done — Rate this recipe!'; }, 2800);
+  });
+
+  /* ══ API ══ */
+  async function callAPI(messages, maxTokens = 1500) {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: maxTokens, system: SYSTEM, messages })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || 'Request failed. Please try again.');
+    return data.content[0].text;
+  }
+
+  /* ══ UI HELPERS ══ */
+  function showLoading() {
+    hideError();
+    [formSection, recipeSection, historySection].forEach(s => s.hidden = true);
+    loadingSection.hidden = false;
+  }
+
+  function showRecipe(markdown) {
+    loadingSection.hidden = true;
+    recipeOutput.innerHTML = markdownToHtml(markdown);
+    chatMessages.innerHTML = '<div class="chat-hint">Tap a cuisine above or type below — "I don\'t have rosemary", "make it vegan", "fewer calories"</div>';
+    recipeSection.hidden = false;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function showError(msg) {
+    loadingSection.hidden = true; formSection.hidden = false;
+    submitBtn.disabled = false; errorMsg.textContent = msg; errorBanner.hidden = false;
+  }
+
+  function hideError() { errorBanner.hidden = true; }
+
+  backBtn.addEventListener('click', () => {
+    recipeSection.hidden = true; formSection.hidden = false; submitBtn.disabled = false;
+    hideError(); window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  /* ══ MARKDOWN ══ */
+  function markdownToHtml(md) {
+    const lines = md.split('\n'), out = [];
+    let listType = null;
+    const close = () => { if (listType) { out.push(`</${listType}>`); listType = null; } };
+    const open  = t  => { if (listType !== t) { close(); out.push(`<${t}>`); listType = t; } };
+    for (const raw of lines) {
+      const line = raw.trimEnd();
+      if      (line.startsWith('## '))  { close(); out.push(`<h2>${esc(line.slice(3))}</h2>`); }
+      else if (line.startsWith('### ')) { close(); out.push(`<h3>${esc(line.slice(4))}</h3>`); }
+      else if (/^[-*] /.test(line))    { open('ul'); out.push(`<li>${inlineHtml(line.slice(2))}</li>`); }
+      else if (/^\d+\. /.test(line))   { open('ol'); out.push(`<li>${inlineHtml(line.replace(/^\d+\. /,''))}</li>`); }
+      else if (line.trim() === '')     { close(); }
+      else {
+        close();
+        const cls = (line.includes('Prep time') || line.includes('Cook time')) ? ' class="meta"' : '';
+        out.push(`<p${cls}>${inlineHtml(line)}</p>`);
+      }
+    }
+    close();
+    return out.join('\n');
+  }
+
+  function inlineHtml(t) { return esc(t).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>'); }
+  function esc(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  /* ══ PAN CANVAS ANIMATION ══ */
+  (function () {
+    const canvas = document.getElementById('pan-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = 300, H = 270; canvas.width = W; canvas.height = H;
+    const PX = 138, PY = 168, PR = 72, LOOP = 3400;
+
+    const steamParts   = Array.from({length:7},(_,i)=>({offset:i/7,drift:(Math.random()-.5)*18,size:1.8+Math.random()*1.8}));
+    const sizzleSpecks = Array.from({length:16},()=>({ox:(Math.random()-.5)*90,oy:(Math.random()-.5)*60,phase:Math.random()*Math.PI*2,speed:.006+Math.random()*.009,size:.6+Math.random()*1.4}));
+
+    const eio  = t => t<.5?2*t*t:-1+(4-2*t)*t;
+    const eout = t => 1-(1-t)**3;
+
+    function drawPan(tilt, panOY) {
+      ctx.save(); ctx.translate(PX, PY + (panOY||0)); ctx.rotate(tilt);
+      ctx.save(); ctx.shadowColor='rgba(0,0,0,.55)'; ctx.shadowBlur=10; ctx.shadowOffsetY=5;
+      const hg=ctx.createLinearGradient(0,-8,0,8); hg.addColorStop(0,'#46465a'); hg.addColorStop(.5,'#2c2c3c'); hg.addColorStop(1,'#18181f');
+      ctx.fillStyle=hg; ctx.beginPath(); ctx.roundRect(PR-2,-8,65,16,8); ctx.fill(); ctx.restore();
+      for(let i=PR+10;i<PR+60;i+=9){ctx.strokeStyle='rgba(255,255,255,.055)';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(i,-5);ctx.lineTo(i,5);ctx.stroke();}
+      [PR+4,PR+58].forEach(rx=>{const rg=ctx.createRadialGradient(rx-1,-1,0,rx,0,4);rg.addColorStop(0,'#555');rg.addColorStop(1,'#111');ctx.fillStyle=rg;ctx.beginPath();ctx.arc(rx,0,3.5,0,Math.PI*2);ctx.fill();});
+      ctx.save(); ctx.shadowColor='rgba(0,0,0,.7)'; ctx.shadowBlur=22; ctx.shadowOffsetY=10;
+      const og=ctx.createRadialGradient(-PR*.28,-PR*.28,4,0,0,PR); og.addColorStop(0,'#52526a'); og.addColorStop(.45,'#28283a'); og.addColorStop(1,'#0c0c18');
+      ctx.fillStyle=og; ctx.beginPath(); ctx.arc(0,0,PR,0,Math.PI*2); ctx.fill(); ctx.restore();
+      ctx.strokeStyle='rgba(255,255,255,.14)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,0,PR,0,Math.PI*2); ctx.stroke();
+      const ig=ctx.createRadialGradient(-18,-18,4,0,6,PR-10); ig.addColorStop(0,'#252535'); ig.addColorStop(1,'#090912');
+      ctx.fillStyle=ig; ctx.beginPath(); ctx.arc(0,0,PR-9,0,Math.PI*2); ctx.fill();
+      ctx.save(); ctx.beginPath(); ctx.arc(0,0,PR-9,0,Math.PI*2); ctx.clip();
+      const sg=ctx.createRadialGradient(-26,-24,2,-26,-24,34); sg.addColorStop(0,'rgba(255,255,255,.09)'); sg.addColorStop(1,'rgba(255,255,255,0)');
+      ctx.fillStyle=sg; ctx.fillRect(-PR,-PR,PR*2,PR*2);
+      const bg=ctx.createRadialGradient(0,8,0,0,8,55); bg.addColorStop(0,'rgba(255,195,40,.07)'); bg.addColorStop(1,'rgba(255,150,20,0)');
+      ctx.fillStyle=bg; ctx.fillRect(-PR,-PR,PR*2,PR*2); ctx.restore(); ctx.restore();
+    }
+
+    function drawEgg(x,y,rot,scale) {
+      ctx.save(); ctx.translate(x,y); ctx.rotate(rot); ctx.scale(scale,scale);
+      ctx.save(); ctx.filter='blur(6px)'; ctx.fillStyle='rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(4,10,30,20,0,0,Math.PI*2); ctx.fill(); ctx.filter='none'; ctx.restore();
+      const ew=ctx.createRadialGradient(-7,-9,2,1,3,36); ew.addColorStop(0,'#fff'); ew.addColorStop(.5,'#f9f9ed'); ew.addColorStop(.85,'rgba(248,248,228,.88)'); ew.addColorStop(1,'rgba(238,238,210,.6)');
+      ctx.fillStyle=ew; ctx.beginPath(); ctx.moveTo(3,-26); ctx.bezierCurveTo(20,-28,34,-15,33,-1); ctx.bezierCurveTo(32,14,22,26,6,30); ctx.bezierCurveTo(-10,34,-26,26,-30,11); ctx.bezierCurveTo(-34,-4,-26,-20,-12,-25); ctx.bezierCurveTo(-4,-28,3,-26,3,-26); ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,.38)'; ctx.lineWidth=.8; ctx.beginPath(); ctx.moveTo(3,-26); ctx.bezierCurveTo(20,-28,34,-15,33,-1); ctx.bezierCurveTo(32,14,22,26,6,30); ctx.bezierCurveTo(-10,34,-26,26,-30,11); ctx.bezierCurveTo(-34,-4,-26,-20,-12,-25); ctx.bezierCurveTo(-4,-28,3,-26,3,-26); ctx.stroke();
+      ctx.save(); ctx.filter='blur(4px)'; ctx.fillStyle='rgba(160,60,0,.32)'; ctx.beginPath(); ctx.arc(2,3,17,0,Math.PI*2); ctx.fill(); ctx.filter='none'; ctx.restore();
+      const yg=ctx.createRadialGradient(-5,-6,1,0,0,16); yg.addColorStop(0,'#fff59d'); yg.addColorStop(.3,'#ffd740'); yg.addColorStop(.65,'#ffab00'); yg.addColorStop(1,'#d84315');
+      ctx.fillStyle=yg; ctx.beginPath(); ctx.arc(0,0,16,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='rgba(180,80,0,.22)'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(0,0,16,0,Math.PI*2); ctx.stroke();
+      ctx.fillStyle='rgba(255,255,255,.55)'; ctx.beginPath(); ctx.ellipse(-5,-7,5.5,3.5,-.4,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,.22)'; ctx.beginPath(); ctx.arc(4,-2,2,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+
+    function drawSteam(ex,ey,alpha,t) {
+      steamParts.forEach((p,i)=>{
+        const life=((t*.00035+p.offset)%1), fade=life<.25?life/.25:1-(life-.25)/.75;
+        const px=ex+p.drift+Math.sin(t*.0012+i*1.4)*10, py=ey-28-life*72;
+        ctx.fillStyle=`rgba(210,218,235,${fade*alpha*.32})`; ctx.beginPath(); ctx.arc(px,py,p.size+life*2.5,0,Math.PI*2); ctx.fill();
+      });
+    }
+
+    function drawSizzle(ex,ey,alpha,t) {
+      sizzleSpecks.forEach(p=>{
+        const a=alpha*Math.max(0,Math.sin(t*p.speed+p.phase))*.7;
+        ctx.fillStyle=`rgba(255,215,130,${a})`; ctx.beginPath(); ctx.arc(ex+p.ox,ey+p.oy,p.size,0,Math.PI*2); ctx.fill();
+      });
+    }
+
+    let start=null;
+    function frame(ts) {
+      if(!start) start=ts;
+      const t=ts-start, p=(t%LOOP)/LOOP;
+      ctx.clearRect(0,0,W,H);
+      const hg=ctx.createRadialGradient(PX,H+10,0,PX,H+10,100);
+      hg.addColorStop(0,`rgba(139,92,246,${.05+Math.sin(t*.003)*.015})`); hg.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=hg; ctx.fillRect(0,0,W,H);
+      // Phases: T1 idle | T2 lift pan | T3 toss egg | T4 egg in air | T5 land | rest idle
+      const T1=.14,T2=.27,T3=.44,T4=.72,T5=.88;
+      let tilt=-.07,panOY=0,ex=PX-6,ey=PY-24,er=0,es=1,steamA=0,sizzleA=0;
+      if(p<=T1){
+        // Idle — egg sizzling on pan
+        steamA=1;sizzleA=.45+Math.sin(t*.005)*.3;
+      }
+      else if(p<=T2){
+        // Pan lifts straight up — egg rides with it
+        const q=eio((p-T1)/(T2-T1));
+        panOY=-54*q;ey=PY-24+panOY;
+        steamA=1-q*.4;sizzleA=.3*(1-q);
+      }
+      else if(p<=T3){
+        // Pan tilts forward to flick egg into air
+        const q=eio((p-T2)/(T3-T2));
+        panOY=-54;tilt=-.07-q*.54;
+        const lq=Math.max(0,(q-.36)/.64);
+        ex=(PX-6)+lq*24;ey=(PY-24-54)-lq*46;er=lq*Math.PI*.9;
+        steamA=0;sizzleA=0;
+      }
+      else if(p<=T4){
+        // Egg arcs through air; pan eases back down
+        const q=(p-T3)/(T4-T3);
+        panOY=-54*(1-eout(Math.min(1,q*2.2)));
+        tilt=-.07-(1-q)*.32;
+        // Air arc from launch point → back on pan
+        const sx=PX+18,sy=PY-24-54-46;
+        ex=sx+(PX-6-sx)*q+Math.sin(q*Math.PI)*8;
+        ey=sy+(PY-24-sy)*q-145*Math.sin(q*Math.PI);
+        er=.9*Math.PI+q*Math.PI*1.1;es=1+Math.sin(q*Math.PI)*.1;
+        steamA=0;sizzleA=0;
+      }
+      else if(p<=T5){
+        // Egg lands with a little bounce
+        const q=eout((p-T4)/(T5-T4));
+        tilt=-.07-(1-q)*.07;
+        ex=(PX-6)+(1-q)*24;ey=(PY-24)-(1-q)*20;er=Math.PI*2;
+        const bounce=p<T4+.04?Math.sin(((p-T4)/.04)*Math.PI)*.18:0;
+        es=1+bounce;steamA=q;sizzleA=q*.75;
+      }
+      else{
+        steamA=1;sizzleA=.4+Math.sin(t*.005)*.3;
+      }
+      drawPan(tilt,panOY); drawSteam(ex,ey,steamA,t); drawSizzle(ex,ey,sizzleA,t); drawEgg(ex,ey,er,es);
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  })();
+
+  // Register service worker for PWA / offline support
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js');
+  }
+</script>
+</body>
+</html>
