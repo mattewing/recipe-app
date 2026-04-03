@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -82,6 +83,64 @@
       padding: 8px 15px; cursor: pointer; font-family: inherit; transition: all 0.18s;
     }
     .history-btn:hover { background: rgba(139,92,246,0.2); }
+    .settings-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px; margin-left: 8px;
+      background: rgba(255,255,255,.04); border: 1px solid var(--border-hi);
+      border-radius: 10px; color: var(--muted2); cursor: pointer;
+      transition: all 0.18s; flex-shrink: 0;
+    }
+    .settings-btn:hover { color: var(--text); background: rgba(255,255,255,.08); border-color: var(--border-hi); }
+
+    /* ─── Settings overlay ─── */
+    .settings-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.72);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      z-index: 300; display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .settings-modal {
+      background: #0d0d1f; border: 1px solid rgba(139,92,246,.28);
+      border-radius: 24px; width: 100%; max-width: 440px;
+      padding: 32px 28px; box-shadow: 0 28px 64px rgba(0,0,0,.65);
+    }
+    .settings-modal h2 { font-size: 1.2rem; font-weight: 700; letter-spacing: -.025em; margin-bottom: 6px; }
+    .settings-modal p  { font-size: .82rem; color: var(--muted2); margin-bottom: 22px; line-height: 1.6; }
+    .settings-key-wrap { position: relative; margin-bottom: 20px; }
+    .settings-key-input {
+      width: 100%; background: rgba(255,255,255,.05); border: 1px solid var(--border-hi);
+      border-radius: 12px; padding: 12px 44px 12px 14px; font-size: .88rem;
+      color: var(--text); font-family: inherit; outline: none;
+      transition: border-color .2s, box-shadow .2s; letter-spacing: .04em;
+    }
+    .settings-key-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-lo); }
+    .settings-key-input::placeholder { color: var(--muted); letter-spacing: 0; }
+    .settings-eye-btn {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: var(--muted); cursor: pointer; padding: 4px;
+      display: flex; align-items: center;
+    }
+    .settings-eye-btn:hover { color: var(--text); }
+    .settings-status { font-size: .78rem; margin-bottom: 18px; min-height: 18px; }
+    .settings-status.ok  { color: var(--green); }
+    .settings-status.set { color: var(--muted2); }
+    .settings-actions { display: flex; gap: 10px; }
+    .settings-save-btn {
+      flex: 1; background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; border: none; border-radius: 12px; padding: 13px;
+      font-size: .92rem; font-weight: 600; cursor: pointer; font-family: inherit;
+      transition: transform .15s, opacity .15s;
+    }
+    .settings-save-btn:hover { transform: translateY(-1px); }
+    .settings-cancel-btn {
+      background: rgba(255,255,255,.05); border: 1px solid var(--border-hi);
+      color: var(--muted2); border-radius: 12px; padding: 13px 18px;
+      font-size: .92rem; font-weight: 600; cursor: pointer; font-family: inherit;
+    }
+    .settings-cancel-btn:hover { background: rgba(255,255,255,.09); }
+    .settings-clear-btn {
+      background: none; border: none; color: var(--red); font-size: .78rem;
+      font-family: inherit; cursor: pointer; text-decoration: underline; padding: 0; margin-top: 12px; display: block;
+    }
 
     main { max-width: 1180px; margin: 0 auto; padding: 36px 20px 80px; }
 
@@ -371,6 +430,9 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         History
       </button>
+      <button class="settings-btn" id="settings-btn" title="API Key Settings">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
     </div>
   </header>
 
@@ -504,6 +566,26 @@
   </main>
 </div>
 
+<!-- ══ SETTINGS OVERLAY ══ -->
+<div class="settings-overlay" id="settings-overlay" hidden>
+  <div class="settings-modal">
+    <h2>⚙️ API Key</h2>
+    <p>Enter your Anthropic API key. It's saved only in this browser — never sent anywhere except directly to Anthropic.</p>
+    <div class="settings-key-wrap">
+      <input class="settings-key-input" id="settings-key-input" type="password" placeholder="sk-ant-api03-…" autocomplete="off" spellcheck="false">
+      <button class="settings-eye-btn" id="settings-eye" type="button">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+    <div class="settings-status" id="settings-status"></div>
+    <div class="settings-actions">
+      <button class="settings-cancel-btn" id="settings-cancel">Cancel</button>
+      <button class="settings-save-btn" id="settings-save">Save Key</button>
+    </div>
+    <button class="settings-clear-btn" id="settings-clear">Remove saved key (use built-in)</button>
+  </div>
+</div>
+
 <!-- ══ RATING OVERLAY ══ -->
 <div class="rating-overlay" id="rating-overlay" hidden>
   <div class="rating-modal">
@@ -534,7 +616,8 @@
 </div>
 
 <script>
-  const API_KEY = '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';
+  const BUILT_IN_KEY = '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';
+  const getApiKey = () => localStorage.getItem('natalie_api_key') || BUILT_IN_KEY;
 
   const SYSTEM = `You are a friendly, expert home cook and recipe assistant for Natalie.
 When asked to modify a recipe (swap an ingredient, change cuisine style, accommodate a dietary need, adjust servings, etc.), always provide the complete updated recipe using this exact Markdown format:
@@ -822,6 +905,56 @@ Format your response exactly like this:
     });
   }
 
+  /* ══ SETTINGS ══ */
+  const settingsBtn     = document.getElementById('settings-btn');
+  const settingsOverlay = document.getElementById('settings-overlay');
+  const settingsCancel  = document.getElementById('settings-cancel');
+  const settingsSave    = document.getElementById('settings-save');
+  const settingsClear   = document.getElementById('settings-clear');
+  const settingsInput   = document.getElementById('settings-key-input');
+  const settingsStatus  = document.getElementById('settings-status');
+  const settingsEye     = document.getElementById('settings-eye');
+
+  function openSettings() {
+    const saved = localStorage.getItem('natalie_api_key');
+    settingsInput.value = saved || '';
+    settingsInput.type = 'password';
+    if (saved) {
+      settingsStatus.textContent = '✓ Custom key in use';
+      settingsStatus.className = 'settings-status set';
+    } else {
+      settingsStatus.textContent = 'Using built-in key';
+      settingsStatus.className = 'settings-status set';
+    }
+    settingsOverlay.hidden = false;
+    setTimeout(() => settingsInput.focus(), 50);
+  }
+
+  settingsBtn.addEventListener('click', openSettings);
+  settingsCancel.addEventListener('click', () => { settingsOverlay.hidden = true; });
+  settingsOverlay.addEventListener('click', e => { if (e.target === settingsOverlay) settingsOverlay.hidden = true; });
+
+  settingsEye.addEventListener('click', () => {
+    settingsInput.type = settingsInput.type === 'password' ? 'text' : 'password';
+  });
+
+  settingsSave.addEventListener('click', () => {
+    const val = settingsInput.value.trim();
+    if (!val) { settingsStatus.textContent = 'Please enter a key.'; settingsStatus.className = 'settings-status'; return; }
+    if (!val.startsWith('sk-ant-')) { settingsStatus.textContent = 'That doesn\'t look like an Anthropic key (should start with sk-ant-).'; settingsStatus.className = 'settings-status'; return; }
+    localStorage.setItem('natalie_api_key', val);
+    settingsStatus.textContent = '✓ Key saved!';
+    settingsStatus.className = 'settings-status ok';
+    setTimeout(() => { settingsOverlay.hidden = true; }, 900);
+  });
+
+  settingsClear.addEventListener('click', () => {
+    localStorage.removeItem('natalie_api_key');
+    settingsInput.value = '';
+    settingsStatus.textContent = 'Cleared — using built-in key.';
+    settingsStatus.className = 'settings-status set';
+  });
+
   /* ══ RATING FORM ══ */
   const rateBtn        = document.getElementById('rate-btn');
   const ratingOverlay  = document.getElementById('rating-overlay');
@@ -890,7 +1023,7 @@ Format your response exactly like this:
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': API_KEY,
+        'x-api-key': getApiKey(),
         'anthropic-version': '2023-06-01',
         'anthropic-dangerous-direct-browser-access': 'true'
       },
